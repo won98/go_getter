@@ -1,0 +1,37 @@
+syntax="proto3";
+
+option go_package="./authpb";
+
+package authpb;
+
+
+message JwtSecure {
+    string id=1;
+    JwtIssuanceStatus jwt_issuance_status=2;
+}
+
+enum JwtIssuanceStatus {
+    UNDEFINED_ISSUANCE=0; //발행 상태가 정의되지 않음
+    ACCESS_ISSUANCE=1;// 엑세스만
+    REFRESH_ISSUANCE=2; //리프레쉬만
+    BOTH_ISSUANCE=3; //모두발행
+}
+
+message DeJwtSecure {
+    string id=1;
+    string error_message=2;
+    bool error_status=3;
+}
+
+
+message JwtToken {
+    string authorization=1;
+    string refresh_authorization=2;
+    string error_message=3;
+    bool error_status=4;
+}
+ 
+//명령어 순서대로 실행
+//go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
+//protoc --proto_path=. ./auth.message.proto --go_out=.
+//protoc --proto_path=. ./auth.service.proto --go_out=. --go-grpc_out=.

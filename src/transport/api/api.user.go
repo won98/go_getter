@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"guide_go/src/infrastructure"
+	"guide_go/src/infrastructure/grpc"
+	"guide_go/src/internal/authpb"
 	"guide_go/src/transport/api/dto"
 	"log"
 )
@@ -54,6 +56,7 @@ func (l *APIStandardLauncher) SignIn(c ApiContext) error {
 		reply["error"] = err.Error()
 		return c.Reply(reply)
 	}
+
 	return c.Reply(retval)
 }
 
@@ -78,19 +81,37 @@ func (l *APIStandardLauncher) EmailCheck(c ApiContext) error {
 }
 
 func (l *APIStandardLauncher) AutoLogin(c ApiContext) error {
+
 	var (
-		err    error
-		reply  = make(map[string]interface{})
-		user   dto.User
-		rtoken string
-		token  string
+		err       error
+		reply     = make(map[string]interface{})
+		user      dto.User
+		rtoken    string
+		token     string
+		grpcToken *authpb.JwtToken
 	)
+
+	fmt.Println("123")
 	refreshToken, err := infrastructure.VerifyRefresh(c.GetReTokenString())
+	fmt.Println("c.GetGrpcReTokenString() : ", c.GetGrpcReTokenString())
+	//grpc token server
+	grpcServer := grpc.NewGrpcServer(l.Env)
+	proxyClient := grpc.NewProxyAuthClient(grpcServer)
+	grpcrefreshToken, rpcerr := proxyClient.VerifyJwtRefresh(c.GetGrpcReTokenString())
 	if err != nil {
 		return err
 	}
+	if rpcerr != nil {
+		return rpcerr
+	}
 	fmt.Println(refreshToken)
+	fmt.Println("grpcrefreshToken", grpcrefreshToken.Id)
+	fmt.Println("grpcrefreshTokenrpcerr", rpcerr)
 	if refreshToken == "NULL" {
+		reply["error"] = "Invalid refresh token"
+		return c.Reply(reply)
+	}
+	if grpcrefreshToken == nil {
 		reply["error"] = "Invalid refresh token"
 		return c.Reply(reply)
 	}
@@ -113,13 +134,91 @@ func (l *APIStandardLauncher) AutoLogin(c ApiContext) error {
 		}
 
 	}
+	if grpcrefreshToken.Id == userPk.U.ID {
+		grpcToken, err = proxyClient.LocalT2Issuer(&authpb.JwtSecure{
+			Id:                userPk.U.ID,
+			JwtIssuanceStatus: authpb.JwtIssuanceStatus_BOTH_ISSUANCE,
+		})
+		if err != nil {
+			reply["error"] = err.Error()
+			return c.Reply(reply)
+		}
+
+	}
+	err = l.Mysql.UserRepositoryImpl.UpdateRefresh(rtoken, userPk.U.Email)
+	if err != nil {
+		reply["error"] = "Update failed: " + err.Error()
+		return c.Reply(reply)
+	}
 	return c.Reply(dto.Authentication{
-		Email:        userPk.U.Email,
-		Profile:      userPk.U.Profile,
-		NickName:     userPk.U.Nickname,
-		AccessToken:  token,
-		RefreshToken: rtoken,
+		Email:            userPk.U.Email,
+		Profile:          userPk.U.Profile,
+		NickName:         userPk.U.Nickname,
+		AccessToken:      token,
+		RefreshToken:     rtoken,
+		GrpcAccessToken:  grpcToken.Authorization,
+		GrpcRefreshToken: grpcToken.RefreshAuthorization,
 	})
+}
+
+func (l *APIStandardLauncher) Refresh(c ApiContext) error {
+	var (
+		err   error
+		reply = make(map[string]interface{})
+		// user      dto.User
+		rtoken    string
+		token     string
+		grpcToken *authpb.JwtToken
+	)
+	refreshToken, err := infrastructure.VerifyRefresh(c.GetReTokenString())
+	grpcServer := grpc.NewGrpcServer(l.Env)
+	proxyClient := grpc.NewProxyAuthClient(grpcServer)
+	grpcrefreshToken, rpcerr := proxyClient.VerifyJwtRefresh(c.GetGrpcReTokenString())
+	if err != nil {
+		return err
+	}
+	if rpcerr != nil {
+		return rpcerr
+	}
+	if refreshToken == "NULL" {
+		reply["error"] = "Invalid refresh token"
+		return c.Reply(reply)
+	}
+	if grpcrefreshToken == nil {
+		reply["error"] = "Invalid refresh token"
+		return c.Reply(reply)
+	}
+	userPk, err := l.Mysql.UserRepositoryImpl.CheckUserByIdAndRefresh(refreshToken, c.GetReTokenString())
+	if err != nil {
+		reply["error"] = "record not found"
+		return c.Reply(reply)
+	}
+	token, rtoken, err = infrastructure.CreateAllToken(userPk.U.ID)
+	if err != nil {
+		reply["error"] = "token generation failed"
+		return c.Reply(reply)
+	}
+	grpcToken, err = proxyClient.LocalT2Issuer(&authpb.JwtSecure{
+		Id:                userPk.U.ID,
+		JwtIssuanceStatus: authpb.JwtIssuanceStatus_BOTH_ISSUANCE,
+	})
+	if err != nil {
+		reply["error"] = "Grpc_token generation failed"
+		return c.Reply(reply)
+	}
+	err = l.Mysql.UserRepositoryImpl.UpdateRefresh(rtoken, userPk.U.Email)
+	if err != nil {
+		reply["error"] = "Update failed: " + err.Error()
+		return c.Reply(reply)
+	}
+	retval := &dto.Authentication{
+		AccessToken:      token,
+		RefreshToken:     rtoken,
+		GrpcAccessToken:  grpcToken.Authorization,
+		GrpcRefreshToken: grpcToken.RefreshAuthorization,
+	}
+	reply["result"] = retval
+	return c.Reply(reply)
 }
 
 func (l *APIStandardLauncher) Mypage(c ApiContext) error {
@@ -128,10 +227,19 @@ func (l *APIStandardLauncher) Mypage(c ApiContext) error {
 		reply = make(map[string]interface{})
 	)
 	token, err := infrastructure.VerifyToken(c.GetTokenString())
+
 	if err != nil {
 		reply["error"] = err.Error()
 		return c.Reply(reply)
 	}
+	//grpc token server
+	grpcServer := grpc.NewGrpcServer(l.Env)
+	proxyClient := grpc.NewProxyAuthClient(grpcServer)
+	grpcreaccessToken, rpcerr := proxyClient.VerifyJwtAccess(c.GetGrpcTokenString())
+	if rpcerr != nil {
+		return rpcerr
+	}
+	fmt.Println("grpcreaccessToken : ", grpcreaccessToken)
 	row, err := l.Mysql.UserRepositoryImpl.MyPage(token)
 	if err != nil {
 		reply["error"] = err.Error()
@@ -150,6 +258,13 @@ func (l *APIStandardLauncher) UpdateMypage(c ApiContext) error {
 	if err != nil {
 		reply["error"] = err.Error()
 		return c.Reply(reply)
+	}
+	grpcServer := grpc.NewGrpcServer(l.Env)
+	proxyClient := grpc.NewProxyAuthClient(grpcServer)
+	grpcreaccessToken, rpcerr := proxyClient.VerifyJwtAccess(c.GetGrpcTokenString())
+	fmt.Println("grpcreaccessToken : ", grpcreaccessToken)
+	if rpcerr != nil {
+		return rpcerr
 	}
 	err = c.bind(&userInfo)
 	if err != nil {
@@ -177,6 +292,14 @@ func (l *APIStandardLauncher) ChangePassword(c ApiContext) error {
 	if err != nil {
 		reply["error"] = err.Error()
 		return c.Reply(reply)
+	}
+	//grpc token server
+	grpcServer := grpc.NewGrpcServer(l.Env)
+	proxyClient := grpc.NewProxyAuthClient(grpcServer)
+	grpcreaccessToken, rpcerr := proxyClient.VerifyJwtAccess(c.GetGrpcTokenString())
+	fmt.Println("grpcreaccessToken : ", grpcreaccessToken)
+	if rpcerr != nil {
+		return rpcerr
 	}
 	err = c.bind(&newPassword)
 	if err != nil {

@@ -9,5 +9,6 @@ type UserRepository interface {
 	CreateUser(user *entity.User) error
 	CheckUserById(user *dto.User) (*dto.CheckUser, error)
 	UpdateMypage(Id string, UserInfo *dto.UserInfo) error
+	UpdateRefresh(Rtoken, Eamil string) error
 	ChangePassword(Id string, PasswordChange *dto.PasswordChange) error
 }

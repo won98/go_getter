@@ -26,6 +26,20 @@ func (my *UserRepositoryImpl) CheckUserById(user *dto.User) (*dto.CheckUser, err
 	fmt.Println(err)
 	return dto, nil
 }
+func (my *UserRepositoryImpl) CheckUserByIdAndRefresh(user, rtoken string) (*dto.CheckUser, error) {
+	dto := &dto.CheckUser{
+		U: &entity.User{},
+	}
+	fmt.Println("user : ", user)
+	fmt.Println("rtoken : ", rtoken)
+	err := my.ORMMysql.Model(&entity.User{}).
+		Where("id = ? and refresh_token = ?", user, rtoken).First(dto.U).Error
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(err)
+	return dto, nil
+}
 
 func (my *UserRepositoryImpl) EmailCheck(email string) (int64, error) {
 	var cnt int64
@@ -57,7 +71,17 @@ func (my *UserRepositoryImpl) UpdateMypage(id string, UserInfo *dto.UserInfo) er
 	}
 	return nil
 }
+func (my *UserRepositoryImpl) UpdateRefresh(rtoken, email string) error {
 
+	updateInfo := map[string]interface{}{
+		"refresh_token": rtoken,
+		"updated_at":    time.Now(),
+	}
+	if err := my.ORMMysql.Model(&entity.User{}).Where("email =?", email).Updates(updateInfo).Error; err != nil {
+		return err
+	}
+	return nil
+}
 func (my *UserRepositoryImpl) ChangePassword(id string, Password *dto.PasswordChange) error {
 
 	updateInfo := map[string]interface{}{

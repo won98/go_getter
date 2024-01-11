@@ -1,0 +1,17 @@
+syntax="proto3";
+
+option go_package="./authpb";
+
+package authpb;
+
+import "google/protobuf/empty.proto";
+import "auth.message.proto";
+
+
+service AuthGrpcService {
+    rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc LocalT2Issuer(JwtSecure) returns (JwtToken) {}
+    rpc LocalT1Issuer(JwtSecure) returns (JwtToken) {}
+    rpc VerifyJwtAccess(google.protobuf.Empty) returns (DeJwtSecure) {}
+    rpc VerifyJwtRefresh(google.protobuf.Empty) returns (DeJwtSecure) {}
+}

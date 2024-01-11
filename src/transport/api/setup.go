@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"guide_go/src/application/service"
 	"guide_go/src/domain"
+	"guide_go/src/infrastructure/grpc"
 	"guide_go/src/internal/launch"
 	"log"
 	"os"
@@ -34,6 +35,7 @@ type ApiLauncher struct {
 	Fiber *fiber.App
 	*launch.Launcher
 	ServicePool *service.ServicePool
+	OAuthApp    *grpc.GrpcServer
 }
 
 type APIStandardLauncher struct {

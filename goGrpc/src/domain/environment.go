@@ -7,11 +7,8 @@ import (
 )
 
 type Environment struct {
-	Environment string                 `yaml:"environment"`
-	ApiBase     EnvironmentDefaultBase `yaml:"api"`
-	Mysql       EnvironmentMysql       `yaml:"mysql"`
-	Redis       EnvironmentClient      `yaml:"redis"`
-	AuthRpc     EnvironmentRpcClient   `yaml:"auth_rpc"`
+	Environment string             `yaml:"environment"`
+	RpcBase     EnvironmentRpcBase `yaml:"rpc"`
 	PodIP       string
 	PodName     string
 	NodeName    string
@@ -58,27 +55,15 @@ func (e EnvironmentLoader) ToEnviroment() *Environment {
 
 }
 
-type EnvironmentDefaultBase struct {
+func (e *Environment) IsProduction() bool {
+	if e.Environment == "development" {
+		return true
+	} else {
+		return false
+	}
+}
+
+type EnvironmentRpcBase struct {
 	Enable bool `yaml:"enable"`
 	Port   int  `yaml:"port"`
-}
-
-type EnvironmentClient struct {
-	Enable bool   `yaml:"enable"`
-	Host   string `yaml:"host"`
-	Port   int    `yaml:"port"`
-}
-
-type EnvironmentMysql struct {
-	Enable   bool   `yaml:"enable"`
-	Project  string `yaml:"project"`
-	Instance string `yaml:"instance"`
-	Database string `yaml:"database"`
-}
-type EnvironmentRpcClient struct {
-	Enable  bool   `yaml:"enable"`
-	Host    string `yaml:"host"`
-	Port    int    `yaml:"port"`
-	MinPool int    `yaml:"min_pool"`
-	MaxPool int    `yaml:"max_pool"`
 }

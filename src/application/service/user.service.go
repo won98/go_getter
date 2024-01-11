@@ -5,6 +5,8 @@ import (
 	"guide_go/src/common"
 	"guide_go/src/domain/repositories"
 	"guide_go/src/infrastructure"
+	"guide_go/src/infrastructure/grpc"
+	"guide_go/src/internal/authpb"
 	"guide_go/src/transport/api/dto"
 
 	"github.com/teris-io/shortid"
@@ -26,15 +28,6 @@ func (svc *UserService) SignUp(user *dto.User) (*dto.Authentication, error) {
 		return nil, err
 	}
 	user.Password = string(hash)
-
-	// token, err := infrastructure.CreateToken(userUniId)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// rtoken, err := infrastructure.CreateRefreshToken(userUniId)
-	// if err != nil {
-	// 	return nil, err
-	// }
 	token, rtoken, err := infrastructure.CreateAllToken(userUniId)
 	if err != nil {
 		return nil, err
@@ -45,13 +38,27 @@ func (svc *UserService) SignUp(user *dto.User) (*dto.Authentication, error) {
 	if err := svc.userRepo.CreateUser(userobj); err != nil {
 		return nil, err
 	}
+	//grpc token server
+	grpcServer := grpc.NewGrpcServer(svc.Env)
+	proxyClient := grpc.NewProxyAuthClient(grpcServer)
+	grpcToken, err := proxyClient.LocalT2Issuer(&authpb.JwtSecure{
+		Id:                userUniId,
+		JwtIssuanceStatus: authpb.JwtIssuanceStatus_BOTH_ISSUANCE,
+	})
+	// fmt.Println("grpcToken	: ", grpcToken)
+	if err != nil {
+		fmt.Println("Error")
+	}
+	fmt.Println("이건가요????", err)
 
 	return &dto.Authentication{
-		AccessToken:  token,
-		RefreshToken: rtoken,
-		Email:        user.Email,
-		Profile:      user.Profile,
-		NickName:     user.Nickname,
+		AccessToken:      token,
+		RefreshToken:     rtoken,
+		Email:            user.Email,
+		Profile:          user.Profile,
+		NickName:         user.Nickname,
+		GrpcAccessToken:  grpcToken.Authorization,
+		GrpcRefreshToken: grpcToken.RefreshAuthorization,
 	}, nil
 }
 
@@ -70,13 +77,31 @@ func (svc *UserService) SignIn(user *dto.User) (*dto.Authentication, error) {
 	if err != nil {
 		return nil, err
 	}
+	//grpc token server
+	grpcServer := grpc.NewGrpcServer(svc.Env)
+	proxyClient := grpc.NewProxyAuthClient(grpcServer)
+	grpcToken, err := proxyClient.LocalT2Issuer(&authpb.JwtSecure{
+		Id:                u.U.ID,
+		JwtIssuanceStatus: authpb.JwtIssuanceStatus_BOTH_ISSUANCE,
+	})
+	fmt.Println("grpcToken	: ", grpcToken)
+	if err != nil {
+		fmt.Println("Error")
+	}
+	fmt.Println("이건가요????", err)
+	err = svc.userRepo.UpdateRefresh(rtoken, user.Email)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	return &dto.Authentication{
-		AccessToken:  token,
-		RefreshToken: rtoken,
-		Email:        u.U.Email,
-		Profile:      u.U.Profile,
-		NickName:     u.U.Nickname,
+		AccessToken:      token,
+		RefreshToken:     rtoken,
+		Email:            u.U.Email,
+		Profile:          u.U.Profile,
+		NickName:         u.U.Nickname,
+		GrpcAccessToken:  grpcToken.Authorization,
+		GrpcRefreshToken: grpcToken.RefreshAuthorization,
 	}, nil
 }
 

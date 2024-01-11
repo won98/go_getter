@@ -7,6 +7,7 @@ func (al APIStandardLauncher) APISetUp() {
 	am.POST("/user/signin", al.SignIn)
 	am.POST("/user/emailchk", al.EmailCheck)
 	am.GET("/user/auto", al.AutoLogin)
+	am.GET("/user/refresh", al.Refresh)
 	am.GET("/user/mypage", al.Mypage)
 	am.POST("/user/updatemypage", al.UpdateMypage)
 	am.POST("/user/changepassword", al.ChangePassword)

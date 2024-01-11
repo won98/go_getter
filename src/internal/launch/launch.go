@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"guide_go/src/common"
 	"guide_go/src/domain"
+	"guide_go/src/infrastructure/grpc"
+	"guide_go/src/infrastructure/grpc/proxyagent"
 	"guide_go/src/infrastructure/mysql"
 	"log"
 	"os"
@@ -28,6 +30,9 @@ func (l *Launcher) LauncGuide() {
 		l.alert(err)
 	}
 	l.Mysql = mysql.InitMysql(&l.Env.Mysql)
+	proxy := grpc.NewGrpcServer(l.Env)
+	fmt.Println("proxy : ", proxy)
+	proxyagent.Register(proxy)
 
 }
 

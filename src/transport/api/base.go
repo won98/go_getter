@@ -41,8 +41,14 @@ func (a *ApiContext) SendFile(url string) error {
 func (a *ApiContext) GetTokenString() string {
 	return a.Fiber.Get("Authorization")
 }
+func (a *ApiContext) GetGrpcTokenString() string {
+	return a.Fiber.Get("GrpcAuthorization")
+}
 func (a *ApiContext) GetReTokenString() string {
 	return a.Fiber.Get("RefreshAuthorization")
+}
+func (a *ApiContext) GetGrpcReTokenString() string {
+	return a.Fiber.Get("GrpcRefreshAuthorization")
 }
 
 func (a *ApiContext) bind(data interface{}) error {

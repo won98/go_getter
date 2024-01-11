@@ -18,11 +18,13 @@ type User struct {
 }
 
 type Authentication struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	Email        string `json:"email" gorm:"email"`
-	Profile      string `json:"profile" gorm:"profile"`
-	NickName     string `json:"nickname" gorm:"nickname"`
+	AccessToken      string `json:"access_token"`
+	RefreshToken     string `json:"refresh_token"`
+	Email            string `json:"email" gorm:"email"`
+	Profile          string `json:"profile" gorm:"profile"`
+	NickName         string `json:"nickname" gorm:"nickname"`
+	GrpcAccessToken  string `json:"Grpc_access_token"`
+	GrpcRefreshToken string `json:"Grpc_refresh_token"`
 }
 
 func (u *User) TransferDomain() *entity.User {
